@@ -249,6 +249,8 @@ typedef enum _VAProcFilterType {
     VAProcFilterSkinToneEnhancement,
     /** \brief Total Color Correction. */
     VAProcFilterTotalColorCorrection,
+    /** \brief High Dynamic Range Tone Mapping. */
+    VAProcFilterHighDynamicRangeToneMapping,
     /** \brief Number of video filters. */
     VAProcFilterCount
 } VAProcFilterType;
@@ -338,6 +340,32 @@ typedef enum _VAProcTotalColorCorrectionType {
     /** \brief Number of color correction attributes. */
     VAProcTotalColorCorrectionCount
 } VAProcTotalColorCorrectionType;
+
+/** \brief High Dynamic Range Metadata types. */
+typedef enum _VAProcHighDynamicRangeMetadataType {
+    VAProcHighDynamicRangeMetadataNone = 0,
+    /** \brief Metadata type for HDR10. */
+    VAProcHighDynamicRangeMetadataHDR10
+} VAProcHighDynamicRangeMetadataType;
+
+/** \brief Video Processing Mode. */
+typedef enum _VAProcMode {
+    /** 
+     * \brief Power Saveing Mode.
+     * This mode means running on Fixed Function in a power saving way.
+     */
+    VAProcPowerSavingMode = 0,
+    /** 
+     * \brief Performance Mode. 
+     * This mode means running on Execution Unit in a performance way with more and more EU on Gens.
+     */
+    VAProcPerformanceMode,
+    /** 
+     * \brief Quality Mode. 
+     */
+    VAProcQualityMode
+} VAProcMode;
+
 /** @name Video blending flags */
 /**@{*/
 /** \brief Global alpha blending. */
@@ -435,6 +463,18 @@ typedef struct _VABlendState {
 #define VA_SOURCE_RANGE_REDUCED         1
 #define VA_SOURCE_RANGE_FULL            2
 
+/** @name Tone Mapping flags multiple HDR mode*/
+/**@{*/
+/** \brief Tone Mapping from HDR content to HDR display. */
+#define VA_TONE_MAPPING_HDR_TO_HDR      0x0001
+/** \brief Tone Mapping from HDR content to SDR display. */
+#define VA_TONE_MAPPING_HDR_TO_SDR      0x0002
+/** \brief Tone Mapping from HDR content to EDR display. */
+#define VA_TONE_MAPPING_HDR_TO_EDR      0x0004
+/** \brief Tone Mapping from SDR content to HDR display. */
+#define VA_TONE_MAPPING_SDR_TO_HDR      0x0008
+/**@}*/
+
 /** \brief Video processing pipeline capabilities. */
 typedef struct _VAProcPipelineCaps {
     /** \brief Pipeline flags. See VAProcPipelineParameterBuffer::pipeline_flags. */
@@ -522,9 +562,9 @@ typedef struct _VAProcPipelineCaps {
     uint32_t        min_output_height;
     /** \brief Reserved bytes for future use, must be zero */
     #if defined(__AMD64__) || defined(__x86_64__) || defined(__amd64__) || defined(__LP64__)
-    uint32_t                va_reserved[VA_PADDING_HIGH - 2];
+    uint32_t        va_reserved[VA_PADDING_HIGH - 2];
     #else
-    uint32_t                va_reserved[VA_PADDING_HIGH];
+    uint32_t        va_reserved[VA_PADDING_HIGH];
     #endif
 } VAProcPipelineCaps;
 
@@ -540,7 +580,7 @@ typedef struct _VAProcFilterValueRange {
     float               step;
 
     /** \brief Reserved bytes for future use, must be zero */
-    uint32_t                va_reserved[VA_PADDING_LOW];
+    uint32_t            va_reserved[VA_PADDING_LOW];
 } VAProcFilterValueRange;
 
 typedef struct _VAProcColorProperties {
@@ -550,6 +590,102 @@ typedef struct _VAProcColorProperties {
     uint8_t color_range;
     uint8_t reserved[6];
 } VAProcColorProperties;
+
+/** \berief Describes High Dynamic Range Meta Data for HDR10. */
+typedef struct _VAHdrMetaDataHDR10
+{
+    /**
+     * \brief X chromaticity coordinate of the mastering display.
+     *
+     * Index value c equal to 0 should correspond to the green primary.
+     * Index value c equal to 1 should correspond to the blue primary.
+     * Index value c equal to 2 should correspond to the red primary.
+     * The value for display_primaries_x shall be in the range of 0 to 50000 inclusive.
+     */
+    uint16_t	display_primaries_x[3];
+    /**
+     * \brief Y chromaticity coordinate of the mastering display.
+     *
+     * Index value c equal to 0 should correspond to the green primary.
+     * Index value c equal to 1 should correspond to the blue primary.
+     * Index value c equal to 2 should correspond to the red primary.
+     * The value for display_primaries_y shall be in the range of 0 to 50000 inclusive.
+     */
+    uint16_t	display_primaries_y[3];
+    /**
+     * \brief X chromaticity coordinate of the white point of the mastering display.
+     *
+     * The value for white_point_x shall be in the range of 0 to 50000 inclusive.
+     */
+    uint16_t	white_point_x;
+    /**
+     * \brief Y chromaticity coordinate of the white point of the mastering display.
+     *
+     * The value for white_point_y shall be in the range of 0 to 50000 inclusive.
+     */
+    uint16_t	white_point_y;
+    /**
+     * \brief The maximum display luminance of the mastering display.
+     *
+     * The value is in units of 0.0001 candelas per square metre.
+     */
+    uint32_t    max_display_mastering_luminance;
+    /**
+     * \brief The minumum display luminance of the mastering display.
+     *
+     * The value is in units of 0.0001 candelas per square metre.
+     */
+    uint32_t    min_display_mastering_luminance;
+    /**
+     * \brief The maximum content light level.
+     *
+     * The value is in units of 0.0001 candelas per square metre.
+     */
+    uint16_t    max_content_light_level;
+    /**
+     * \brief The maximum picture average light level.
+     *
+     * The value is in units of 0.0001 candelas per square metre.
+     */
+    uint16_t    max_pic_average_light_level;
+    /** Resevered */
+    uint16_t    reserved[VA_PADDING_HIGH];
+} VAHdrMetaDataHDR10;
+
+/** \brief Capabilities specification for the High Dynamic Range filter. */
+typedef struct _VAProcFilterCapHighDynamicRange {
+    /** \brief high dynamic range type. */
+    VAProcHighDynamicRangeMetadataType     metadata_type;
+    /**
+     * \brief flag for high dynamic range tone mapping
+     *
+     * The flag is the combination of VA_TONE_MAPPING_XXX_TO_XXX.
+     * It could be VA_TONE_MAPPING_HDR_TO_HDR | VA_TONE_MAPPING_HDR_TO_SDR.
+     * SDR content to SDR display is always supported by default since it is legacy path.
+     */
+    uint16_t                               caps_flag;
+    /** \brief Reserved bytes for future use, must be zero */
+    uint16_t                               va_reserved[VA_PADDING_HIGH];
+} VAProcFilterCapHighDynamicRange;
+
+/** \brief High Dynamic Range Meta Data. */
+typedef struct _VAHdrMetaData
+{
+    /** \brief high dynamic range metadata type, HDR10 etc. */
+    uint32_t   metatdata_ype;
+    /**
+     *  \brief Pointer to high dynamic range metadata.
+     *
+     *  The pointer could point to VAHdrMetaDataHDR10 or other HDR meta data.
+     */
+    void*       metadata;
+    /**
+     *  \brief Size of high dynamic range metadata.
+     */
+    uint32_t    metadata_size;
+    /** \brief Reserved bytes for future use, must be zero */
+    uint32_t   reserved[VA_PADDING_LOW];
+} VAHdrMetaData;
 
 /**
  * \brief Video processing pipeline configuration.
@@ -610,7 +746,7 @@ typedef struct _VAProcPipelineParameterBuffer {
      *
      * Pointer to a #VARectangle defining the region within the output
      * surface that receives the processed pixels. If NULL, \c output_region
-     * implies the whole surface. 
+     * implies the whole surface.
      *
      * Note that any pixels residing outside the specified region will
      * be filled in with the \ref output_background_color.
@@ -656,7 +792,7 @@ typedef struct _VAProcPipelineParameterBuffer {
      *   \c VA_BOTTOM_FIELD. Note that any deinterlacing filter
      *   (#VAProcFilterDeinterlacing) will override those flags.
      * - Color space conversion: \c VA_SRC_BT601, \c VA_SRC_BT709,
-     *   \c VA_SRC_SMPTE_240. 
+     *   \c VA_SRC_SMPTE_240.
      * - Scaling: \c VA_FILTER_SCALING_DEFAULT, \c VA_FILTER_SCALING_FAST,
      *   \c VA_FILTER_SCALING_HQ, \c VA_FILTER_SCALING_NL_ANAMORPHIC.
      */
@@ -675,15 +811,15 @@ typedef struct _VAProcPipelineParameterBuffer {
      */
     VABufferID         *filters;
     /** \brief Actual number of filters. */
-    uint32_t        num_filters;
+    uint32_t           num_filters;
     /** \brief Array of forward reference frames. */
     VASurfaceID        *forward_references;
     /** \brief Number of forward reference frames that were supplied. */
-    uint32_t        num_forward_references;
+    uint32_t           num_forward_references;
     /** \brief Array of backward reference frames. */
     VASurfaceID        *backward_references;
     /** \brief Number of backward reference frames that were supplied. */
-    uint32_t        num_backward_references;
+    uint32_t           num_backward_references;
     /**
      * \brief Rotation state. See rotation angles.
      *
@@ -759,11 +895,19 @@ typedef struct _VAProcPipelineParameterBuffer {
 
     VAProcColorProperties  output_color_properties;
 
+    /**
+     * \brief Output High Dynamic Metadata.
+     *
+     * If output_metadata is NULL, then output default to SDR.
+     */
+    VAHdrMetaData          *output_hdr_metadata;
+    VAProcMode             processing_mode;
+
     /** \brief Reserved bytes for future use, must be zero */
     #if defined(__AMD64__) || defined(__x86_64__) || defined(__amd64__)|| defined(__LP64__)
-    uint32_t                va_reserved[VA_PADDING_LARGE - 13];
+    uint32_t                va_reserved[VA_PADDING_LARGE - 15];
     #else
-    uint32_t                va_reserved[VA_PADDING_LARGE - 11];
+    uint32_t                va_reserved[VA_PADDING_LARGE - 12];
     #endif
 } VAProcPipelineParameterBuffer;
 
