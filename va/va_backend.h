@@ -30,7 +30,6 @@
 #define _VA_BACKEND_H_
 
 #include <va/va.h>
-#include <linux/videodev2.h>
 
 typedef struct VADriverContext *VADriverContextP;
 typedef struct VADisplayContext *VADisplayContextP;
@@ -486,8 +485,20 @@ struct VADriverVTable
             void               *descriptor      /* out */
         );
 
+        VAStatus (*vaSyncSurface2) (
+            VADriverContextP ctx,
+            VASurfaceID surface,
+            uint64_t timeout_ns
+        );
+
+        VAStatus (*vaSyncBuffer) (
+            VADriverContextP ctx,
+            VABufferID buf_id,
+            uint64_t timeout_ns
+        );
+
         /** \brief Reserved bytes for future use, must be zero */
-        unsigned long reserved[57];
+        unsigned long reserved[55];
 };
 
 struct VADriverContext
@@ -652,9 +663,19 @@ struct VADisplayContext
     void *error_callback_user_context;
     VAMessageCallback info_callback;
     void *info_callback_user_context;
+    VAStatus (*vaGetNumCandidates) (
+        VADisplayContextP ctx,
+        int * num_candidates
+    );
+
+    VAStatus (*vaGetDriverNameByIndex) (
+        VADisplayContextP ctx,
+        char **driver_name,
+        int  candidate_index
+    );
 
     /** \brief Reserved bytes for future use, must be zero */
-    unsigned long reserved[32];
+    unsigned long reserved[30];
 };
 
 typedef VAStatus (*VADriverInit) (

@@ -49,6 +49,10 @@ extern int va_trace_flag;
     if (va_trace_flag) {                        \
         trace_func(__VA_ARGS__);                \
     }
+#define VA_TRACE_RET(dpy,ret)                   \
+    if (va_trace_flag){                         \
+        va_TraceStatus(dpy, __func__, ret);     \
+    }
 
 DLL_HIDDEN
 void va_TraceInit(VADisplay dpy);
@@ -196,9 +200,23 @@ void va_TraceEndPicture(
 );
 
 DLL_HIDDEN
+void va_TraceEndPictureExt(
+    VADisplay dpy,
+    VAContextID context,
+    int endpic_done
+);
+
+DLL_HIDDEN
 void va_TraceSyncSurface(
     VADisplay dpy,
     VASurfaceID render_target
+);
+
+DLL_HIDDEN
+void va_TraceSyncSurface2(
+    VADisplay dpy,
+    VASurfaceID surface,
+    uint64_t timeout_ns
 );
 
 DLL_HIDDEN
@@ -224,6 +242,12 @@ void va_TraceQuerySurfaceError(
 	void **error_info /*out*/
 );
 
+DLL_HIDDEN
+void va_TraceSyncBuffer(
+    VADisplay dpy,
+    VABufferID buf_id,
+    uint64_t timeout_ns
+);
 
 DLL_HIDDEN
 void va_TraceMaxNumDisplayAttributes (
@@ -269,6 +293,8 @@ void va_TracePutSurface (
     unsigned int number_cliprects, /* number of clip rects in the clip list */
     unsigned int flags /* de-interlacing flags */
 );
+
+void va_TraceStatus(VADisplay dpy, const char * funcName, VAStatus status);
 
 #ifdef __cplusplus
 }
